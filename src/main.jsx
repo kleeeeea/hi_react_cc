@@ -33,6 +33,11 @@ const VIEW_OPTIONS = [
   ...BENCHMARK_METRICS.filter((item) => item.key !== "benchmarkAvg"),
 ];
 
+const APP_SECTIONS = [
+  { key: "leaderboard", label: "榜单总览", note: "教学能力与通用基准双轴榜单" },
+  { key: "qualitative", label: "质性评审", note: "对话 messages 与人工评分" },
+];
+
 const LOCAL_RATINGS_KEY = "hi-react-cc.qualitative-ratings";
 
 const css = `
@@ -160,6 +165,51 @@ const css = `
     align-items: center;
     margin-bottom: 18px;
     padding: 14px;
+  }
+
+  .mode-switcher {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .mode-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 18px 20px;
+    background: rgba(255, 251, 245, 0.68);
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    transition: 180ms ease;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+
+  .mode-tab strong {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+
+  .mode-tab span {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .mode-tab.active {
+    border-color: rgba(199, 104, 53, 0.28);
+    background:
+      radial-gradient(circle at top right, rgba(199, 104, 53, 0.16), transparent 34%),
+      linear-gradient(135deg, rgba(31, 111, 120, 0.14), rgba(255, 251, 245, 0.96) 44%);
+    box-shadow: var(--shadow);
+  }
+
+  .mode-tab.active strong {
+    color: var(--accent-strong);
   }
 
   .tabs {
@@ -349,8 +399,41 @@ const css = `
   }
 
   .qualitative {
-    margin-top: 18px;
     padding: 18px;
+  }
+
+  .qualitative-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: end;
+    margin-bottom: 18px;
+  }
+
+  .qualitative-hero h2 {
+    margin: 0 0 8px;
+    font-size: clamp(30px, 4vw, 48px);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+  }
+
+  .qualitative-hero p {
+    margin: 0;
+    max-width: 56ch;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+
+  .qualitative-meta {
+    display: grid;
+    gap: 10px;
+    min-width: 240px;
+  }
+
+  .qualitative-meta .pill {
+    justify-content: center;
+    background: rgba(199, 104, 53, 0.1);
+    color: var(--accent-strong);
   }
 
   .qualitative-layout {
@@ -526,8 +609,17 @@ const css = `
       margin-left: 0;
     }
 
+    .mode-switcher {
+      flex-direction: column;
+    }
+
     .qualitative-sidebar {
       position: static;
+    }
+
+    .qualitative-hero {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 
@@ -680,6 +772,7 @@ function writeLocalRatings(data) {
 function App() {
   const [models, setModels] = useState([]);
   const [query, setQuery] = useState("");
+  const [activeSection, setActiveSection] = useState("leaderboard");
   const [activeView, setActiveView] = useState("overall");
   const [selectedModel, setSelectedModel] = useState(null);
   const [record, setRecord] = useState(null);
@@ -890,269 +983,297 @@ function App() {
           </div>
         </section>
 
-        <section className="panel controls">
-          <div className="tabs">
-            {VIEW_OPTIONS.map((option) => (
-              <button
-                key={option.key}
-                className={`tab ${activeView === option.key ? "active" : ""}`}
-                onClick={() => setActiveView(option.key)}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <label className="search">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索模型名 / 备注 / 版本号"
-            />
-          </label>
+        <section className="mode-switcher">
+          {APP_SECTIONS.map((section) => (
+            <button
+              key={section.key}
+              className={`mode-tab ${activeSection === section.key ? "active" : ""}`}
+              onClick={() => setActiveSection(section.key)}
+              type="button"
+            >
+              <strong>{section.label}</strong>
+              <span>{section.note}</span>
+            </button>
+          ))}
         </section>
 
-        <section className="layout">
-          <article className="panel chart-panel">
-            <div className="section-title">
-              <h2>{labelFor(activeView)} 排行</h2>
-              <span>按当前维度自动排序</span>
-            </div>
-            {ranked.length ? (
-              <div className="bars">
-                {ranked.map((model, index) => {
-                  const max = scoreMax(activeView);
-                  const width = Math.max(6, (model.activeScore / max) * 100);
-                  return (
-                    <button
-                      key={model.name}
-                      className="bar-row"
-                      type="button"
-                      onClick={() => setSelectedModel(model)}
-                      style={{
-                        border: 0,
-                        background: "transparent",
-                        padding: 0,
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div className="bar-label">
-                        <strong>
-                          {index + 1}. {model.name}
-                        </strong>
-                        <span>{model.note || "未分类"}</span>
-                      </div>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{ width: `${Math.min(width, 100)}%` }} />
-                      </div>
-                      <div className="bar-value">{formatScore(model.activeScore)}</div>
-                    </button>
-                  );
-                })}
+        {activeSection === "leaderboard" ? (
+          <>
+            <section className="panel controls">
+              <div className="tabs">
+                {VIEW_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    className={`tab ${activeView === option.key ? "active" : ""}`}
+                    onClick={() => setActiveView(option.key)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div className="empty">没有匹配结果。</div>
-            )}
-          </article>
+              <label className="search">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="搜索模型名 / 备注 / 版本号"
+                />
+              </label>
+            </section>
 
-          <aside className="panel detail-panel">
-            {selectedModel ? (
-              <>
-                <div className="detail-header">
-                  <div>
-                    <h3>{selectedModel.name}</h3>
-                    <span className="pill">
-                      {selectedModel.note || "未备注"}
-                      {selectedModel.version ? ` · v${selectedModel.version}` : ""}
-                    </span>
-                  </div>
-                  <div className="pill">
-                    综合得分 {formatScore(scoreValue(selectedModel, "overall"))}
-                  </div>
-                </div>
-
-                <div className="score-grid">
-                  <div className="score-card">
-                    <span>教学平均分</span>
-                    <strong>{formatScore(selectedModel.qualityAvg)}</strong>
-                  </div>
-                  <div className="score-card">
-                    <span>综合基准分</span>
-                    <strong>{formatScore(selectedModel.benchmarkAvg)}</strong>
-                  </div>
-                </div>
-
+            <section className="layout">
+              <article className="panel chart-panel">
                 <div className="section-title">
-                  <h3>教学维度</h3>
-                  <span>5 分制</span>
+                  <h2>{labelFor(activeView)} 排行</h2>
+                  <span>按当前维度自动排序</span>
                 </div>
-                <div className="metric-list">
-                  {QUALITY_METRICS.map((metric) => (
-                    <MetricItem
-                      key={metric.key}
-                      label={metric.label}
-                      value={selectedModel[metric.key]}
-                      max={metric.max}
-                    />
-                  ))}
-                </div>
-
-                <div className="section-title" style={{ marginTop: 18 }}>
-                  <h3>Benchmark 维度</h3>
-                  <span>百分制</span>
-                </div>
-                <div className="metric-list">
-                  {BENCHMARK_METRICS.map((metric) => (
-                    <MetricItem
-                      key={metric.key}
-                      label={metric.label}
-                      value={selectedModel[metric.key]}
-                      max={metric.max}
-                    />
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="empty">选择左侧模型以查看详细得分。</div>
-            )}
-          </aside>
-        </section>
-
-        <section className="panel qualitative">
-          <div className="section-title">
-            <h2>质性对话评审</h2>
-            <span>messages 可视化与服务器端评分保存</span>
-          </div>
-
-          {record ? (
-            <div className="qualitative-layout">
-              <div className="qualitative-sidebar">
-                <article className="rating-card">
-                  <div className="section-title">
-                    <h3>整体评分</h3>
-                    <span>0-5 分</span>
+                {ranked.length ? (
+                  <div className="bars">
+                    {ranked.map((model, index) => {
+                      const max = scoreMax(activeView);
+                      const width = Math.max(6, (model.activeScore / max) * 100);
+                      return (
+                        <button
+                          key={model.name}
+                          className="bar-row"
+                          type="button"
+                          onClick={() => setSelectedModel(model)}
+                          style={{
+                            border: 0,
+                            background: "transparent",
+                            padding: 0,
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div className="bar-label">
+                            <strong>
+                              {index + 1}. {model.name}
+                            </strong>
+                            <span>{model.note || "未分类"}</span>
+                          </div>
+                          <div className="bar-track">
+                            <div className="bar-fill" style={{ width: `${Math.min(width, 100)}%` }} />
+                          </div>
+                          <div className="bar-value">{formatScore(model.activeScore)}</div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="rating-grid">
-                    <label className="field">
-                      <span>总体评价</span>
-                      <input
-                        max="5"
-                        min="0"
-                        step="0.5"
-                        type="number"
-                        value={ratings.overview.overall}
-                        onChange={(event) => updateOverview("overall", event.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>教学引导</span>
-                      <input
-                        max="5"
-                        min="0"
-                        step="0.5"
-                        type="number"
-                        value={ratings.overview.pedagogy}
-                        onChange={(event) => updateOverview("pedagogy", event.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>答案准确性</span>
-                      <input
-                        max="5"
-                        min="0"
-                        step="0.5"
-                        type="number"
-                        value={ratings.overview.accuracy}
-                        onChange={(event) => updateOverview("accuracy", event.target.value)}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>互动启发性</span>
-                      <input
-                        max="5"
-                        min="0"
-                        step="0.5"
-                        type="number"
-                        value={ratings.overview.engagement}
-                        onChange={(event) => updateOverview("engagement", event.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <label className="field" style={{ marginTop: 10 }}>
-                    <span>整体备注</span>
-                    <textarea
-                      rows="4"
-                      value={ratings.overview.note}
-                      onChange={(event) => updateOverview("note", event.target.value)}
-                    />
-                  </label>
-                  <div className="save-row">
-                    <button className="primary-btn" type="button" onClick={handleSaveRatings}>
-                      保存评分
-                    </button>
-                    <span className="save-hint">
-                      {saveState ||
-                        "优先写入服务端 data/qualitative/message_ratings.json；若接口不存在，则回退到当前浏览器本地存储。"}
-                    </span>
-                  </div>
-                </article>
-
-                <article className="record-card">
-                  <div className="section-title">
-                    <h3>记录信息</h3>
-                    <span>{record.record_id}</span>
-                  </div>
-                  <div className="record-meta">
-                    <div className="meta-row">
-                      <span>场景</span>
-                      <strong>{record.scenario}</strong>
-                    </div>
-                    <div className="meta-row">
-                      <span>题目</span>
-                      <p>{record.question}</p>
-                    </div>
-                    <div className="meta-row">
-                      <span>意图 / 难度</span>
-                      <strong>
-                        {record.intent || "未提供"} / {record.difficulty || "未提供"}
-                      </strong>
-                    </div>
-                    <div className="meta-row">
-                      <span>轮次数</span>
-                      <strong>{record.turn_count ?? "--"}</strong>
-                    </div>
-                  </div>
-                </article>
-              </div>
-
-              <article className="conversation-panel">
-                <div className="section-title">
-                  <h3>Messages</h3>
-                  <span>{record.messages.length} 条消息</span>
-                </div>
-                <div className="conversation-list">
-                  {record.messages.map((message, index) => {
-                    return (
-                      <div
-                        key={`${message.role}-${index}`}
-                        className={`message-card ${message.role || "unknown"}`}
-                      >
-                        <div className="message-head">
-                          <div className="message-role">{message.role || "unknown"}</div>
-                          <div className="message-index">#{index + 1}</div>
-                        </div>
-                        <p className="message-body">{message.content || ""}</p>
-                      </div>
-                    );
-                  })}
-                </div>
+                ) : (
+                  <div className="empty">没有匹配结果。</div>
+                )}
               </article>
+
+              <aside className="panel detail-panel">
+                {selectedModel ? (
+                  <>
+                    <div className="detail-header">
+                      <div>
+                        <h3>{selectedModel.name}</h3>
+                        <span className="pill">
+                          {selectedModel.note || "未备注"}
+                          {selectedModel.version ? ` · v${selectedModel.version}` : ""}
+                        </span>
+                      </div>
+                      <div className="pill">
+                        综合得分 {formatScore(scoreValue(selectedModel, "overall"))}
+                      </div>
+                    </div>
+
+                    <div className="score-grid">
+                      <div className="score-card">
+                        <span>教学平均分</span>
+                        <strong>{formatScore(selectedModel.qualityAvg)}</strong>
+                      </div>
+                      <div className="score-card">
+                        <span>综合基准分</span>
+                        <strong>{formatScore(selectedModel.benchmarkAvg)}</strong>
+                      </div>
+                    </div>
+
+                    <div className="section-title">
+                      <h3>教学维度</h3>
+                      <span>5 分制</span>
+                    </div>
+                    <div className="metric-list">
+                      {QUALITY_METRICS.map((metric) => (
+                        <MetricItem
+                          key={metric.key}
+                          label={metric.label}
+                          value={selectedModel[metric.key]}
+                          max={metric.max}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="section-title" style={{ marginTop: 18 }}>
+                      <h3>Benchmark 维度</h3>
+                      <span>百分制</span>
+                    </div>
+                    <div className="metric-list">
+                      {BENCHMARK_METRICS.map((metric) => (
+                        <MetricItem
+                          key={metric.key}
+                          label={metric.label}
+                          value={selectedModel[metric.key]}
+                          max={metric.max}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="empty">选择左侧模型以查看详细得分。</div>
+                )}
+              </aside>
+            </section>
+          </>
+        ) : (
+          <section className="panel qualitative">
+            <div className="qualitative-hero">
+              <div>
+                <span className="eyebrow">qualitative review</span>
+                <h2>质性对话评审</h2>
+                <p>
+                  将对话记录、题目背景与人工评分拆成单独工作台，便于像 Arena 一样在独立视图里查看
+                  messages、完成评审并保存结果。
+                </p>
+              </div>
+              <div className="qualitative-meta">
+                <span className="pill">messages 可视化与评分保存</span>
+                {record ? <span className="pill">{record.messages.length} 条消息</span> : null}
+              </div>
             </div>
-          ) : (
-            <div className="empty">质性记录加载中。</div>
-          )}
-        </section>
+
+            {record ? (
+              <div className="qualitative-layout">
+                <div className="qualitative-sidebar">
+                  <article className="rating-card">
+                    <div className="section-title">
+                      <h3>整体评分</h3>
+                      <span>0-5 分</span>
+                    </div>
+                    <div className="rating-grid">
+                      <label className="field">
+                        <span>总体评价</span>
+                        <input
+                          max="5"
+                          min="0"
+                          step="0.5"
+                          type="number"
+                          value={ratings.overview.overall}
+                          onChange={(event) => updateOverview("overall", event.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>教学引导</span>
+                        <input
+                          max="5"
+                          min="0"
+                          step="0.5"
+                          type="number"
+                          value={ratings.overview.pedagogy}
+                          onChange={(event) => updateOverview("pedagogy", event.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>答案准确性</span>
+                        <input
+                          max="5"
+                          min="0"
+                          step="0.5"
+                          type="number"
+                          value={ratings.overview.accuracy}
+                          onChange={(event) => updateOverview("accuracy", event.target.value)}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>互动启发性</span>
+                        <input
+                          max="5"
+                          min="0"
+                          step="0.5"
+                          type="number"
+                          value={ratings.overview.engagement}
+                          onChange={(event) => updateOverview("engagement", event.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <label className="field" style={{ marginTop: 10 }}>
+                      <span>整体备注</span>
+                      <textarea
+                        rows="4"
+                        value={ratings.overview.note}
+                        onChange={(event) => updateOverview("note", event.target.value)}
+                      />
+                    </label>
+                    <div className="save-row">
+                      <button className="primary-btn" type="button" onClick={handleSaveRatings}>
+                        保存评分
+                      </button>
+                      <span className="save-hint">
+                        {saveState ||
+                          "优先写入服务端 data/qualitative/message_ratings.json；若接口不存在，则回退到当前浏览器本地存储。"}
+                      </span>
+                    </div>
+                  </article>
+
+                  <article className="record-card">
+                    <div className="section-title">
+                      <h3>记录信息</h3>
+                      <span>{record.record_id}</span>
+                    </div>
+                    <div className="record-meta">
+                      <div className="meta-row">
+                        <span>场景</span>
+                        <strong>{record.scenario}</strong>
+                      </div>
+                      <div className="meta-row">
+                        <span>题目</span>
+                        <p>{record.question}</p>
+                      </div>
+                      <div className="meta-row">
+                        <span>意图 / 难度</span>
+                        <strong>
+                          {record.intent || "未提供"} / {record.difficulty || "未提供"}
+                        </strong>
+                      </div>
+                      <div className="meta-row">
+                        <span>轮次数</span>
+                        <strong>{record.turn_count ?? "--"}</strong>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+
+                <article className="conversation-panel">
+                  <div className="section-title">
+                    <h3>Messages</h3>
+                    <span>{record.messages.length} 条消息</span>
+                  </div>
+                  <div className="conversation-list">
+                    {record.messages.map((message, index) => {
+                      return (
+                        <div
+                          key={`${message.role}-${index}`}
+                          className={`message-card ${message.role || "unknown"}`}
+                        >
+                          <div className="message-head">
+                            <div className="message-role">{message.role || "unknown"}</div>
+                            <div className="message-index">#{index + 1}</div>
+                          </div>
+                          <p className="message-body">{message.content || ""}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              </div>
+            ) : (
+              <div className="empty">质性记录加载中。</div>
+            )}
+          </section>
+        )}
       </main>
     </>
   );
